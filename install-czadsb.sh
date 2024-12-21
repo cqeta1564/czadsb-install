@@ -129,10 +129,12 @@ function info_system(){
     STATION_MACHINE=$(uname -m)
     STATION_MODEL=$(grep Model /proc/cpuinfo | awk -F : '{print $2}')
     [[ -z ${STATION_MODEL} ]] && STATION_MODEL=$($SUDO dmidecode | grep -A4 '^System Information' | grep 'Manufacturer' | awk -F: '{print $2}')
+    INSTALL_TXT=$(printf "%.64s" "${INSTALL_URL}")
 
     printf "┌────────────────────────── Informace o systemu ───────────────────────────┐\n"
     printf "│ System: %-64s │\n" "${STATION_SYSTEM} - ${STATION_ARCH}"
     printf "│ Model: %-64s  │\n" "${STATION_MODEL} - ${STATION_MACHINE}"
+    printf "│ URL: %-64s    │\n" "${INSTALL_TXT}"
     [[ "$1" == "end" ]] && printf "└──────────────────────────────────────────────────────────────────────────┘\n"
 }
 
@@ -186,7 +188,7 @@ function collor_set(){
 
 # Funkce zjisti cely nazev sluzby a stav nekterych hodnot 
 function info_ctl(){
-    IS_CTL=$(systemctl | grep $1 | awk '{print $1}' | tr -d '\n')
+    IS_CTL=$(systemctl | grep "$1.*\." | awk '{print $1}' | tr -d '\n')
     if [[ -z ${IS_CTL} ]];then 
         systemctl status $1 &>/dev/null
         [[ "$?" != "4" ]] && IS_CTL=$1
@@ -208,6 +210,7 @@ function info_ctl(){
 function info_components(){
     printf "┌ Komponenty / sluzby ─────── Po startu ──── Prednastaveni ── Status ──────┐\n"
     info_ctl "dump1090"    ; IS_DUMP=${IS_CTL}
+    info_ctl "tar1090"     ; IS_DUMP=${IS_CTL}
     info_ctl "adsbfwd"     ; IS_ADSB=${IS_CTL}
     info_ctl "mlat-client" ; IS_MLAT=${IS_CTL}
     info_ctl "fr24feed"    ; IS_FEED=${IS_CTL}
@@ -262,7 +265,7 @@ function info_exit(){
 function menu_edit(){
     printf "┌──────────────────────────── Uprava / editace ────────────────────────────┐\n"
     printf "│ 1. Identifikace (email, lokace)       a. ADSB servery tretich stran      │\n"
-    printf "│ 2. Lokalizace (Souradnice a vyska)    b. Mlat-client (spousteni)         │\n"
+    printf "│ 2. Umisteni   (Souradnice a vyska)    b. Mlat-client (spousteni)         │\n"
     printf "│ 3. Dump1090   (dev, ppm, gain)        c. RpiMonitor  (spousteni)         │\n"
     printf "│ 4. RTL-SDR    (Serial number)         d. Reporter    (spousteni)         │\n"
     printf "│ 5. ADSBfwd    (destinace)             x. Smaze konfig soubor - vyvoj     │\n"
@@ -277,7 +280,7 @@ function menu_edit(){
 # Funkce nabidne moznosti ADSB serveru tretich stran 
 function menu_third(){
     printf "┌─────────────────────── ADSB servery tretich stran ───────────────────────┐\n"
-    printf "│ a. Piaware                      (https://www.flightaware.com)          x │\n"
+    printf "│ a. Piaware                      (https://www.flightaware.com)            │\n"
     printf "│ b. Flightradar24                (https://www.flightradar24.com)        x │\n"
     printf "│ c. ADSBHub                      (https://www.adsbhub.org)              x │\n"
     printf "│ d. ADS-B Exchange               (https://www.adsbexchange.com/)        x │\n"
@@ -329,12 +332,13 @@ function set_identifikace(){
     STATION_NAME=${X}
 
     UPDATE_MLAT=true
+    UPDATE_OGN=true
     echo
 }
 
 # Funkce nastavi lokalizaci - umisteni zarizeni
 function set_lokalizace(){
-    printf "┌────────────────────────── Lokalizace zarizeni ───────────────────────────┐\n"
+    printf "┌─────────────────────────── Umisteni zarizeni ────────────────────────────┐\n"
     printf "│ Urcuje umisteni zarizeni,  lepe receno  vlastni anteny.  Tyto udaje jsou │\n"
     printf "│ dulezite pro spravny vypocet poloh letadel pomoci mlat klienta. Zadavaji │\n"
     printf "│ se v zemepisne sirce a delce ve stupnich na minimalne 6 desetinych mist, │\n"
@@ -705,7 +709,7 @@ function set_ogn(){
         printf "└──────────────────────────────────────────────────────────────────────────┘\n"
     fi
     if [[ "${OGN}" != "enable" ]] && [[ "${OGN}" != "disable" ]];then
-    if [[ -z ${OGN} ]];then
+        if [[ -z ${OGN} ]];then
             input "Instalovat OGN / Flarm prijimac ? [Y/n]:" '^[ynYN]*$' "y"
         else
             input "Instalovat OGN / Flarm prijimac ? [y/N]:" '^[ynYN]*$' "n"
@@ -734,6 +738,55 @@ function set_ogn(){
         UPDATE_OGN=true
     fi
 }
+
+# Funkce nastavi paramatru pro PiAware / FlightAware
+function set_piaware(){
+    printf "┌───────────────────────── PiAware / FlightAware ──────────────────────────┐\n"
+    printf "│ PiAware umozni predavat data  na  server  https://www.flightaware.com .  │\n"
+    printf "│ Jako  poskytovatel dat muzete  ziskat bezplatny ucet na teto platforme a │\n"
+    printf "│ porovnata vase data z ostatnimi.                                         │\n"
+    printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+    if [[ "${PIAWARE}" != "enable" ]] && [[ "${PIAWARE}" != "disable" ]];then
+        if [[ -z ${PIAWARE} ]];then
+            input "Instalovat PiAware ? [Y/n]:" '^[ynYN]*$' "y"
+        else
+            input "Instalovat PiAware ? [y/N]:" '^[ynYN]*$' "n"
+        fi
+        if [[ "$X" == "n" ]] || [[ "$X" == "N" ]];then
+            PIAWARE="notinstall"
+        else
+            PIAWARE="enable"
+        fi
+    fi
+    if [[ "${PIAWARE}" =~ "disable" ]] || [[ "${PIAWARE}" =~ "enable" ]];then
+        if [[ "${PIAWARE}" == "diseble" ]];then
+            input "Ma se PiAware spoustet automaticky [y/N]:" '^[ynYN]*$' "n"
+        else
+            input "Ma se PiaWare spoustet automaticky [Y/n]:" '^[ynYN]*$' "y"
+        fi
+        if [[ "$X" == "n" ]] || [[ "$X" == "N" ]];then
+            PIAWARE="disable"
+        else
+            PIAWARE="enable"
+        fi
+        if [[ "${PIAWARE_UI}" == "" ]] && [[ -n "/run/piaware/status.json" ]];then
+            PIAWARE_UI=$(awk -F\" '/unclaimed_feeder_id/ {print $4}' /run/piaware/status.json)
+        fi
+        echo
+        printf "┌────────────────────────────── FlightAware ───────────────────────────────┐\n"
+        printf "│ FlightAware pro rozliseni prijimacu  pouziva unikatni idendifikator. Ten │\n"
+        printf "│ je  jedinecny  pro  kazde  zarizeni a generuje se  automaticky  pro nove │\n"
+        printf "│ prijmace.  Pokud  vsak  provadime  preinstalaci  stavajiciho,  je  dobre │\n"
+        printf "│ nastavit tento kod pro automaticke sparovani na strane FlightAware.  Kod │\n"
+        printf "│ v tomto  pripade  najdeme  pod  svym  uctem  na  strankach  FlightAware. │\n"
+        printf "│    ( Pro novou instalaci ponechte prazdne, doplni se automaticky ! )     │\n"
+        printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+        input "UI [${PIAWARE_UI}]:" '^[-0-9abcdef]{36}*$' "${PIAWARE_UI}"
+        PIAWARE_UI=${X}
+        UPDATE_PIAWARE=true
+    fi
+}
+
 
 # Funkce ulozi nastavena data do konfiguracniho souboru
 function set_cfg(){
@@ -814,7 +867,7 @@ REPORTER="${REPORTER}"
 REPORTER_URL="${REPORTER_URL}"
 
 # OGN / Flarm
-# instalace edgo [ notinstall | disable | enable ]
+# instalace OGN/Flarm [ notinstall | disable | enable ]
 OGN="${OGN}"
 # Nazev programu OGN / Flarm
 OGN_NAME="rtlsdr-ogn"
@@ -824,6 +877,12 @@ OGN_DEV="${OGN_DEV}"
 OGN_PPM="${OGN_PPM}"
 # Zesileni rtl-sdr zarizebi
 OGN_GAIN="${OGN_GAIN}"
+
+# PiAware
+# instalace piaware [ notinstall | disable | enable ]
+PIAWARE="${PIAWARE}"
+# Unique Identifier prijimace - je potreba pro obnovu, jinak je pouzito nove
+PIAWARE_UI="${PIAWARE_UI}"
 
 # Informace o zarizeni:
 # Jmeno uzivatele pod kterym se spusti nektere skripty 
@@ -865,6 +924,12 @@ function install_rtl_sdr(){
             echo
             exit 2
         fi
+        printf "┌────────────────── Instalace ovladacu RTL SDR hotova  ────────────────────┐\n"
+        printf "│ Ovladace byly prave doinstalovany. Pro jejich nacteni je nutny restart ! │\n"
+        printf "│                                                                          │\n"
+        printf "│   Ten se provede ihned. Po restartu a opetovnem prihlaseni pokracujte    │\n"
+        printf "│                             prikazem czadsb                              │\n"
+        printf "└──────────────────────────────────────────────────────────────────────────┘\n"
         $SUDO reboot
     else
         echo
@@ -1007,7 +1072,7 @@ function install_ogn(){
     echo 
     echo -n "OGN / Flarm"
     if [[ "${OGN}" == "disable" ]] || [[ "${OGN}" == "enable" ]];then
-        UnitFileState=$(systemctl show ${OGN_NAME} | grep "UnitFileState" | awk -F = '{print $2}' )
+        UnitFileState=$(systemctl show ${OGN_NAME} | grep "UnitFileState" | awk -F = '{print $2}')
         if [[ "${UnitFileState}" == "" ]] || ${UPGRADE} ;then
             echo " - instalace / upgrade OGN / Flarm"
             wget -q ${INSTALL_URL}/install-ogn.sh -O /tmp/install.tmp
@@ -1025,12 +1090,12 @@ function install_ogn(){
             $SUDO sed -i "s/..Device [^;]*/  Device       = ${OGN_DEV} /g" /opt/rtlsdr-ogn/OGNstation.conf
             $SUDO sed -i "s/..DeviceSerial[^;]*/# DeviceSerial = "00000002" /g" /opt/rtlsdr-ogn/OGNstation.conf
         fi
-        $SUDO sed -i "s/Gain[^;]*/Gain        =  ${OGN_GAIN} /g" /opt/rtlsdr-ogn/OGNstation.conf
+        $SUDO sed -i "s/Gain[^;]*/Gain        = ${OGN_GAIN} /g" /opt/rtlsdr-ogn/OGNstation.conf
 
         $SUDO sed -i "s/Latitude.[^;]*/Latitude   =  +${STATION_LAT} /g" /opt/rtlsdr-ogn/OGNstation.conf
         $SUDO sed -i "s/Longitude[^;]*/Longitude  =  +${STATION_LON} /g" /opt/rtlsdr-ogn/OGNstation.conf
         $SUDO sed -i "s/Altitude.[^;]*/Altitude   =  +${STATION_ALT} /g" /opt/rtlsdr-ogn/OGNstation.conf
-        $SUDO sed -i "s/Call[^;]*/Call = \"${STATION_NAME}\" /g" /opt/rtlsdr-ogn/OGNstation.conf
+        $SUDO sed -i "s/Call[^;]*/Call   = \"${STATION_NAME}\" /g" /opt/rtlsdr-ogn/OGNstation.conf
 
         if [[ "$(systemctl is-active ${OGN_NAME})" != "active" ]];then
             echo " - Warning: OGN / Flarm neni spusteno !"
@@ -1043,6 +1108,30 @@ function install_ogn(){
     fi
 }
 
+# Piaware - FlightAware
+install_piaware(){
+    echo 
+    echo -n "PiAware / FlightAware"
+    if [[ "${PIAWARE}" == "disable" ]] || [[ "${PIAWARE}" == "enable" ]];then
+        UnitFileState=$(systemctl show piaware | grep "UnitFileState" | awk -F = '{print $2}')
+        if [[ "${UnitFileState}" == "" ]] || ${UPGRADE} ;then
+            echo " - instalace / upgrade PiAware / FlightAware"
+            wget -q ${INSTALL_URL}/install-piaware.sh -O /tmp/install.tmp
+            . /tmp/install.tmp
+            rm -f /tmp/install.tmp
+        fi
+        [[ "${UnitFileState}" != "generated" ]] && [[ "${UnitFileState}" != "${PIAWARE}d" ]] && $SUDO systemctl ${PIAWARE} ${PIAWARE_NAME}.service
+        [[ "${UnitFileState}" == "generated" ]] && $SUDO /lib/systemd/systemd-sysv-install ${PIAWARE} ${PIAWARE_NAME}
+
+        if [[ -n ${PIAWARE_UI} ]];then
+            $SUDO piaware-config feeder-id ${PIAWARE_UI}
+        fi
+    else
+        echo " - instalace neni povolena, neprovadi se zadna zmena."
+    fi
+}
+
+
 # Funkce postupne pusti jednotlive instalacni skrypty, pokud je na nich zaznamenana zmena
 function install_select(){
     if ${UPGRADE_ALL} ;then
@@ -1052,7 +1141,7 @@ function install_select(){
         install_rpimonitor && UPDATE_RPIMONITOR=false
         install_n2nvpn && UPDATE_N2NVPN=false
         install_ogn && UPDATE_OGN=false
-#       install_piaware && UPDATE_PIAWARE=false
+        install_piaware && UPDATE_PIAWARE=false
     else
         ${UPDATE_DUMP1090} && install_dump1090 && UPDATE_DUMP1090=false
         ${UPDATE_ADSBFWD} && install_adsbfwd && UPDATE_ADSBFWD=false
@@ -1060,7 +1149,7 @@ function install_select(){
         ${UPDATE_RPIMONITOR} && install_rpimonitor && UPDATE_RPIMONITOR=false
         ${UPDATE_N2NVPN} && install_n2nvpn && UPDATE_N2NVPN=false
         ${UPDATE_OGN} && install_ogn && UPDATE_OGN=false
-#       ${UPDATE_PIAWARE} && install_piaware && UPDATE_PIAWARE=false
+        ${UPDATE_PIAWARE} && install_piaware && UPDATE_PIAWARE=false
     fi
     UPGRADE=false
     UPGRADE_ALL=false
@@ -1072,9 +1161,9 @@ function offer_third(){
         info_logo; info_system; info_user end;
         menu_third
         case "$X" in
-            a)  clear; info_logo
+            a) set_piaware; clear   # PiaWare
             ;;
-            b)  clear; info_logo
+            b) clear; info_logo     # Flightradar24
             ;;
             *) return
             ;;

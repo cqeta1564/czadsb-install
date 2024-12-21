@@ -26,6 +26,8 @@ git clone https://github.com/flightaware/dump1090 dump1090-fa
 cd dump1090-fa
 $SUDO dpkg-buildpackage -b --no-sign
 cd ..
+mkdir ~/install
+cp dump1090-fa_*.deb ~/install/
 echo "-------------------------------------<"
 echo "* Instalace dump1090"
 echo
@@ -35,3 +37,4 @@ $SUDO systemctl enable dump1090-fa.service
 $SUDO rm -rf ./dump1090-fa*
 
 echo "* Instalace dump1090 ukoncena"
+

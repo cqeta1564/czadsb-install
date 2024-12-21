@@ -121,22 +121,28 @@ RF:
   OGN:
   {
     CenterFreq  = 868.8;    # [MHz] ze sirkou pasma 868,8 MHz a 2 MHz muzeme zachytit vsechny systemy: FLARM / OGN / FANET / PilotAware
-    Gain        =  28;      # [0.1dB] Rx zesileni OGN prijimace
+    Gain        = 49.6;     # [0.1dB] Rx zesileni OGN prijimace
   };
 } ;
+
+Demodulator:
+{
+  ScanMargin = 30.0;       # [kHz] frekvencni tolerance pro prijem, vetsina signalu by normalne mela byt +/-15 kHz, ale nektere jsou vice mimo frekvenci
+  DetectSNR  = 10.0;       # [dB]  prah detekce pro FLARM/OGN
+}
 
 Position:
 {
   Latitude   =   +${STATION_LAT} ; # [deg] Souradnice anteny ve stupnich
   Longitude  =   +${STATION_LON} ; # [deg]
-  Altitude   =   ${STATION_ALT} ;  # [m]   Nadmorska vvyska nad morem v metrech
-# GeoidSepar =   10;               # [m]   Geoid separation: FLARM vysila GPS nadmorskou vyku, APRS pouziva prostredky nadmorske vysky
+  Altitude   =   ${STATION_ALT} ;        # [m]   Nadmorska vvyska nad morem v metrech
+# GeoidSepar =   10;           # [m]   Geoid separation: FLARM vysila GPS nadmorskou vyku, APRS pouziva prostredky nadmorske vysky
 } ;
 
 APRS:
-{ # APRS oznaceni (max. 9 znaku). Obratte se prosim na http://wiki.glidernet.org/receiver-naming-convention
-  Call = "${STATION_NAME}";
-#  Server = "aprs.glidernet.org:14580";
+{
+  Call   = "${STATION_NAME}";  # APRS oznaceni (max. 9 znaku). Obratte se prosim na http://wiki.glidernet.org/receiver-naming-convention
+# Server = "aprs.glidernet.org:14580";
 } ;
 
 HTTP:

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Instalace:
-#   sudo bash -c "$(wget -nv -O - https://rxw.cz/adsb/install-piaware.sh)"
+#   sudo bash -c "$(wget -nv -O - https://rxw.cz/adsb/install/install-piaware.sh)"
 #
 # Poznamka:
 # Instalace zPiAware repozitare je v dobe psani tohoto skriptu jen pro bullseye !
@@ -61,10 +61,10 @@ install_piaware_web(){
 install_piaware_builder(){
     echo "* Instalace potrebnych balicku pro bildovani"
     echo "------------------------------------->"
-    $SUDO apt-get install -y --no-install-suggests --no-install-recommends python3-setuptools python3-wheel python3-build python3-pip python3-dev git
-    $SUDO apt-get install -y --no-install-suggests --no-install-recommends debhelper dh-python
+    $SUDO apt-get install -y --no-install-suggests --no-install-recommends python3-dev python3-venv python3-setuptools python3-wheel python3-build python3-pip
+    $SUDO apt-get install -y --no-install-suggests --no-install-recommends build-essential git devscripts tcl8.6-dev tclx8.4 tcllib tcl-tls itcl3 debhelper dh-python
 # Pro bookworm:
-    $SUDO apt-get install -y --no-install-suggests --no-install-recommends autoconf libboost-system-dev libboost-program-options-dev libboost-regex-dev libboost-filesystem-dev patchelf tcl8.6-dev
+    $SUDO apt-get install -y --no-install-suggests --no-install-recommends autoconf libboost-system-dev libboost-program-options-dev libboost-regex-dev libboost-filesystem-dev patchelf
     echo "-------------------------------------<"
     echo "* Naklonovani PiAware z Gitu"
     git clone ${piaware_git}
@@ -128,7 +128,8 @@ fi
 ARCH=$(dpkg --print-architecture)
 
 # Vyber zpusob instalace
-if [[ "${VERSION_ID}" == "${piaware_version_id}" ]];then    # Pokud se verze debianu zhoduje z podporovanym repozitarem PiAware, pouzi jeho balicky
+# Pokud se verze debianu zhoduje z podporovanym repozitarem PiAware, pouzi jeho balicky
+if [[ "${VERSION_ID}" == "${piaware_version_id}" ]] && [[ "${ARCH}" =~ "arm" ]];then    # armhf, arm64
     install_piaware_apt
     install_piaware
 #   install_piaware_web
