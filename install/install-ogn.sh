@@ -38,7 +38,7 @@ fi
 grep "^${OGN_USER}:" /etc/passwd > /dev/null
 if [[ "$?" == "1" ]];then
     echo "* Vytvoreni uzivatele \"${OGN_USER}\" pro spusteni rtlsdr OGN"
-    $SUDO useradd --no-create-home --system ${OGN_USER}
+    $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${OGN_USER}
 else
     echo "* Uzivatel \"${OGN_USER}\" jiz existuje"
 fi

@@ -60,8 +60,14 @@ if ! command -v edge > /dev/null ;then
     $SUDO apt install -y --no-install-suggests --no-install-recommends n2n
 fi
 
-echo "* Vytvoreni uzivatele ${N2NADSB_USER} pro spusteni n2n vpn CZADSB"
-$SUDO useradd --system ${N2NADSB_USER}
+# Over a vytvor uzivatele
+grep "^${N2NADSB_USER}:" /etc/passwd > /dev/null
+if [[ "$?" == "1" ]];then
+    echo "* Vytvoreni uzivatele \"${N2NADSB_USER}\" pro spusteni ${N2NADSB_NAME}"
+    $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${N2NADSB_USER}
+else
+    echo "* Uzivatel \"${N2NADSB_USER}\" jiz existuje"
+fi
 
 echo "* Nastaveni uzivatelskych prav pro slozku ${N2NADSB_FOLDER}"
 $SUDO mkdir -p ${N2NADSB_FOLDER}

@@ -50,7 +50,7 @@ fi
 grep "^${MLAT_USER}:" /etc/passwd > /dev/null
 if [[ "$?" == "1" ]];then
     echo "* Vytvoreni uzivatele \"${MLAT_USER}\" pro spusteni ${MLAT_NAME}"
-    $SUDO useradd --no-create-home --system ${MLAT_USER}
+    $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${MLAT_USER}
 else
     echo "* Uzivatel \"${MLAT_USER}\" jiz existuje"
 fi
