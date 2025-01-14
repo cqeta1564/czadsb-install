@@ -26,7 +26,7 @@ function info_logo(){
 }
 
 # Funkce zobrazi dotaz a ceka na odpoved odpovidajici masce. Pokud je prazdna, tak nastavi default
-# Povinne parametry: text, maska, default 
+# Povinne parametry: text, maska, default
 function input(){
     while true; do
         read -p "$1 " X
@@ -36,7 +36,7 @@ function input(){
         if [[ "${X}" =~ $2 ]];then
             break
         fi
-        echo "Neplatna hodnota. Prosim zadejte platnou hodnotu." 
+        echo "Neplatna hodnota. Prosim zadejte platnou hodnotu."
     done
 }
 
@@ -56,10 +56,10 @@ function set_default(){
     fi
     if [[ -z ${STATION_ALT} ]];then
         wget -q "https://api.open-elevation.com/api/v1/lookup?locations=${STATION_LAT},${STATION_LON}" -O /tmp/ipinfo.log
-        [[ -e /tmp/ipinfo.log ]] && STATION_ALT=$(grep -ioP 'elevation..[[:digit:]]*' /tmp/ipinfo.log | awk -F: '{print $2}' | tr -d '\n')    
+        [[ -e /tmp/ipinfo.log ]] && STATION_ALT=$(grep -ioP 'elevation..[[:digit:]]*' /tmp/ipinfo.log | awk -F: '{print $2}' | tr -d '\n')
     fi
 
-    # Jmeno uzivatele pod kterym se spusti nektere skripty 
+    # Jmeno uzivatele pod kterym se spusti nektere skripty
     [[ -z ${CZADSB_USER} ]] && CZADSB_USER="adsb"
     # Adresar pro instalaci nekterych programu
     [[ -z ${INSTALL_FOLDER} ]] && INSTALL_FOLDER="/opt/czadsb"
@@ -88,24 +88,24 @@ function set_default(){
     [[ -z ${MLAT_RESULT} ]] && MLAT_RESULT="czadsb.cz:31003"
     # Format a typ pripojeni pro odesilani zpracovanych dat
     [[ -z ${MLAT_FORMAT} ]] && MLAT_FORMAT="basestation,connect"
-    
+
     # Nazev VPN Edge n2n
     [[ -z ${N2NADSB_NAME} ]] && N2NADSB_NAME="vpn-czadsb"
     # Adresa VPN serveru
     [[ -z ${N2NADSB_SERVER} ]] && N2NADSB_SERVER="n2n.czadsb.cz:82"
-    
+
     # Adresa pro zasilani report zprav
     [[ -z ${REPORTER_URL} ]] && REPORTER_URL="https://report.czadsb.cz"
-    
+
     # Nazev programu OGN / Flarm
-    [[ -z ${OGN_NAME} ]] && OGN_NAME="rtlsdr-ogn" 
+    [[ -z ${OGN_NAME} ]] && OGN_NAME="rtlsdr-ogn"
     #  Vyber rtl-sdr zarizeni
     [[ -z ${OGN_DEV} ]] && OGN_DEV=1
     Kalibrace rtl-sdr zarizeni
     [[ -z ${OGN_PPM} ]] && OGN_PPM=0
     Zesileni rtl-sdr zarizebi
     [[ -z ${OGN_GAIN} ]] && OGN_GAIN=48
-    
+
 }
 
 # Funkce nacte seznam rtl-sdr zarizeni
@@ -188,7 +188,7 @@ function collor_set(){
 
 # Funkce zjisti cely nazev sluzby a stav nekterych hodnot 
 function info_ctl(){
-    IS_CTL=$(systemctl | grep "$1.*\." | awk '{print $1}' | tr -d '\n')
+    IS_CTL=$(systemctl | awk '/'$1'.*\.service/ {print $1}' | awk -F. '{print $1}' | tr -d '\n')
     if [[ -z ${IS_CTL} ]];then 
         systemctl status $1 &>/dev/null
         [[ "$?" != "4" ]] && IS_CTL=$1
@@ -216,8 +216,8 @@ function info_components(){
     info_ctl "fr24feed"    ; IS_FEED=${IS_CTL}
     info_ctl "piaware"     ; IS_PIAW=${IS_CTL}
     info_ctl "lighttpd"
-    info_ctl "rpimonitor"  ; IS_RPIM=${IS_CTL}
     info_ctl "vpn-czadsb"  ; IS_VPNC=${IS_CTL}
+    info_ctl "rpimonitor"  ; IS_RPIM=${IS_CTL}
     if [[ "${OGN}" == "disable" ]] || [[ "${OGN}" == "enable" ]];then
         info_ctl "${OGN_NAME}"
     fi
@@ -243,9 +243,14 @@ function info_newinst(){
 
 # Funkce zobrazi nastavenou konfiguraci dalsich programu
 function info_setting(){
+    if [ ${ADSBFWD_DST} == "czadsb.cz:50000" ];then
+        ADSBFWD_TXT=$(echo -en " \e[0;31mNASTAVTE PRIRAZENY PORT !\e[0m")
+    else
+        ADSBFWD_TXT=""
+    fi
     printf "┌ Sluzba ───── Instalace ───────────── Nastaveni ──────────────────────────┐\n"
     printf "│ Dump1090-fa  %-10s dev: %-15s ppm: %-5d  gain: %4s dB   │\n" "${DUMP1090}" "${DUMP1090_DEV}" "${DUMP1090_PPM}" "${DUMP1090_GAIN}"
-    printf "│ ADSBfwd      %-10s dst: %-42s  │\n" "${ADSBFWD}" "${ADSBFWD_DST}"
+    printf "│ ADSBfwd      %-10s dst: %-42s  │\n" "${ADSBFWD}" "${ADSBFWD_DST} ${ADSBFWD_TXT}"
     printf "│ Mlat-client  %-10s Server: %-40s │\n" "${MLAT}" "${MLAT_SERVER} -> ${MLAT_RESULT}"
     printf "│ VPN-CzADSB   %-10s url: %-19s Local: %-16s │\n" "${N2NADSB}" "${N2NADSB_SERVER}" "${N2NADSB_LOCAL}"
     printf "│ RpiMonitor   %-59s │\n" "${RPIMONITOR}"
