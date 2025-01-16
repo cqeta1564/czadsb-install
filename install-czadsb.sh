@@ -150,7 +150,7 @@ function info_user(){
         LON=$(echo ${STATION_LON} | sed 's/\./,/')
     fi
     printf "├───────────────────────── Identifikace zarizeni ──────────────────────────┤\n"
-    printf "│ Uzivatel: %-34s  Pojmenovani: %-13s │\n" "${USER_EMAIL}" "${STATION_NAME}"
+    printf "│ Uzivatel: %-30s  Pojmenovani: %-17s │\n" "${USER_EMAIL}" "${STATION_NAME}"
     printf "│ Souradnice a nadmorska vyska umisteni prijimace:                         │\n"
     printf "│ Zem.sirka: %11.7f° Zem.delka: %11.7f°  Nadmorska vyska: %3d m  │\n" ${LAT} ${LON} "${STATION_ALT}"
     printf "│ Url adresa pro overeni umisteni (ctrl+lev.tlac mysi):                    │\n"
@@ -426,6 +426,7 @@ function set_adsbfwd(){
     printf "│ ADSBfwd  preposila  ADSB  data z dump1090 komunite CzADSB.  Muze zaroven │\n"
     printf "│ preposilat i na jine, podobne projekty.  Tato  komponent  se  bude  take │\n"
     printf "│ instalovat automaticky.                                                  │\n"
+    printf "│    (Prirazený port najdete na zaslane screene pri registraci na CzADSB.) │\n"
     printf "└──────────────────────────────────────────────────────────────────────────┘\n"
     [[ -z ${ADSBFWD} ]] && ADSBFWD="enable"
     if [[ "${EXPERT}" != "user" ]];then
