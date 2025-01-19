@@ -58,7 +58,9 @@ function set_default(){
         wget -q "https://api.open-elevation.com/api/v1/lookup?locations=${STATION_LAT},${STATION_LON}" -O /tmp/ipinfo.log
         [[ -e /tmp/ipinfo.log ]] && STATION_ALT=$(grep -ioP 'elevation..[[:digit:]]*' /tmp/ipinfo.log | awk -F: '{print $2}' | tr -d '\n')
     fi
-
+    # Jednoznacny identifikator stanice
+    [[ -z ${STATION_UUID} ]] && STATION_UUID=$(cat /proc/sys/kernel/random/uuid)
+    
     # Jmeno uzivatele pod kterym se spusti nektere skripty
     [[ -z ${CZADSB_USER} ]] && CZADSB_USER="adsb"
     # Adresar pro instalaci nekterych programu
@@ -95,7 +97,7 @@ function set_default(){
     [[ -z ${N2NADSB_SERVER} ]] && N2NADSB_SERVER="n2n.czadsb.cz:82"
 
     # Adresa pro zasilani report zprav
-    [[ -z ${REPORTER_URL} ]] && REPORTER_URL="https://report.czadsb.cz"
+    REPORTER_URL="https://rxw.cz/reporter/" #   [[ -z ${REPORTER_URL} ]] && REPORTER_URL="https://report.czadsb.cz"
 
     # Nazev programu OGN / Flarm
     [[ -z ${OGN_NAME} ]] && OGN_NAME="rtlsdr-ogn"
@@ -150,6 +152,7 @@ function info_user(){
         LON=$(echo ${STATION_LON} | sed 's/\./,/')
     fi
     printf "├───────────────────────── Identifikace zarizeni ──────────────────────────┤\n"
+    printf "│ Identifikace zarizeni UIDD: %-42s   │\n" "${STATION_UUID}"
     printf "│ Uzivatel: %-30s  Pojmenovani: %-17s │\n" "${USER_EMAIL}" "${STATION_NAME}"
     printf "│ Souradnice a nadmorska vyska umisteni prijimace:                         │\n"
     printf "│ Zem.sirka: %11.7f° Zem.delka: %11.7f°  Nadmorska vyska: %3d m  │\n" ${LAT} ${LON} "${STATION_ALT}"
@@ -273,7 +276,7 @@ function menu_edit(){
     printf "│ 2. Umisteni   (Souradnice a vyska)    b. Mlat-client (spousteni)         │\n"
     printf "│ 3. Dump1090   (dev, ppm, gain)        c. RpiMonitor  (spousteni)         │\n"
     printf "│ 4. RTL-SDR    (Serial number)         d. Reporter    (spousteni)         │\n"
-    printf "│ 5. ADSBfwd    (destinace)             x. Smaze konfig soubor - vyvoj     │\n"
+    printf "│ 5. ADSBfwd    (destinace, port)       x. Smaze konfig soubor - vyvoj     │\n"
     printf "│ 6. VPN-CzADSB (local IP)              u. Upgrade/preinstalace aplikace   │\n"
     printf "│ 7. OGN /Flarm (dev, ppm, gain)        v. Aplikuj zmeny + upgrade         │\n"
     printf "│ 9. Aplikuj zmeny                      r. Aplikuj zmeny a proved restart  │\n"
@@ -424,7 +427,7 @@ function set_dump1090(){
 function set_adsbfwd(){
     printf "┌──────────────────────────────── ADSBfwd ─────────────────────────────────┐\n"
     printf "│ ADSBfwd  preposila  ADSB  data z dump1090 komunite CzADSB.  Muze zaroven │\n"
-    printf "│ preposilat i na jine, podobne projekty.  Tato  komponent  se  bude  take │\n"
+    printf "│ preposilat i na jine, podobne projekty. Tato  komponenta  se  bude  take │\n"
     printf "│ instalovat automaticky.                                                  │\n"
     printf "│    (Prirazený port najdete na zaslane screene pri registraci na CzADSB.) │\n"
     printf "└──────────────────────────────────────────────────────────────────────────┘\n"
@@ -456,7 +459,7 @@ function set_adsbfwd(){
                 ADSBFWD="enable"
             fi
         fi
-        input "Prirazeny port, nebo seznam serveru kam se data posilaji [${ADSBFWD_DST}]:" '^[a-zA-Z0-9_\.\-\:\ ]*$' "${ADSBFWD_DST}"
+        input "Zadejte port, nebo seznam serveru kam se data posilaji [${ADSBFWD_DST}]:" '^[a-zA-Z0-9_\.\-\:\ ]*$' "${ADSBFWD_DST}"
         if [[ ${X} =~ ":" ]];then
             ADSBFWD_DST=${X}
         else
@@ -808,6 +811,8 @@ CFG_VERSION=2
 USER_EMAIL="${USER_EMAIL}"
 # pojmenovani prijimace. Max 9 znaku bez mezer
 STATION_NAME="${STATION_NAME}"
+# unikatni oznaceni stanice
+STATION_UUID="${STATION_UUID}"
 
 # Lokalizace anteny prijimace. Zemepisne souradnice ve stupnich.
 STATION_LAT="${STATION_LAT}"
@@ -900,6 +905,9 @@ STATION_MACHINE="${STATION_MACHINE}"
 STATION_USERS="${STATION_USERS}"
 
 EOM
+    if [ ! "${REPORTER}" == "notinstall" -a ! "${REPORTER}" == "" ];then
+        report=$(curl -s -X POST -F "file=@${CFG}" ${REPORTER_URL})
+    fi
 }
 # --------------------- Konec funkci pro nastaveni -----------------------------
 
@@ -1159,8 +1167,11 @@ function install_select(){
     fi
     UPGRADE=false
     UPGRADE_ALL=false
+    set_cfg
 }
 # ------------------------ Konec definic funkci --------------------------------
+
+# Menu pro sluzby tretich stran
 function offer_third(){
     while true; do
         clear
@@ -1177,7 +1188,7 @@ function offer_third(){
     done
 }
 
-
+# ---------------------- Zacatek vlastnoho skriptu -----------------------------
 # Over prava na uzivatele root, pripadne nastav sudo
 if [ "$(id -u)" != "0" ];then
     echo
