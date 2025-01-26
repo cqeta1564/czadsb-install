@@ -43,21 +43,23 @@ function input(){
 # Funkce nacte udaje z ipinfo.io na zaklade verejne IP adresy a prednastavi lokalizaci a nazev. Nastavi vychozi hodnoty
 function set_default(){
     wget -q http://ipinfo.io -O /tmp/ipinfo.log
+    [[ -e /tmp/ipinfo.log ]] && STATION_PUBIP=$(cat /tmp/ipinfo.log | grep \"ip\" | awk -F\" '{print $4}')
     if [[ -z ${STATION_NAME} ]] && [[ -e /tmp/ipinfo.log ]];then
-        NAME1=$(cat /tmp/ipinfo.log | grep country | awk -F\" '{print $4}')
-        NAME2=$(cat /tmp/ipinfo.log | grep city | awk -F\" '{print $4}')
+        NAME1=$(cat /tmp/ipinfo.log | grep \"country\" | awk -F\" '{print $4}')
+        NAME2=$(cat /tmp/ipinfo.log | grep \"city\" | awk -F\" '{print $4}')
         STATION_NAME="${NAME1}-${NAME2}"
     fi
     if [[ -z ${STATION_LAT} ]] && [[ -e /tmp/ipinfo.log ]];then
-        STATION_LAT=$(cat /tmp/ipinfo.log | grep loc | awk -F\" '{print $4}' | awk -F, '{print $1}' | tr -d '\n')
+        STATION_LAT=$(cat /tmp/ipinfo.log | grep \"loc\" | awk -F\" '{print $4}' | awk -F, '{print $1}' | tr -d '\n')
     fi
     if [[ -z ${STATION_LON} ]] && [[ -e /tmp/ipinfo.log ]];then
-        STATION_LON=$(cat /tmp/ipinfo.log | grep loc | awk -F\" '{print $4}' | awk -F, '{print $2}' | tr -d '\n')
+        STATION_LON=$(cat /tmp/ipinfo.log | grep \"loc\" | awk -F\" '{print $4}' | awk -F, '{print $2}' | tr -d '\n')
     fi
     if [[ -z ${STATION_ALT} ]];then
         wget -q "https://api.open-elevation.com/api/v1/lookup?locations=${STATION_LAT},${STATION_LON}" -O /tmp/ipinfo.log
         [[ -e /tmp/ipinfo.log ]] && STATION_ALT=$(grep -ioP 'elevation..[[:digit:]]*' /tmp/ipinfo.log | awk -F: '{print $2}' | tr -d '\n')
     fi
+    
     # Jednoznacny identifikator stanice
     [[ -z ${STATION_UUID} ]] && STATION_UUID=$(cat /proc/sys/kernel/random/uuid)
     
@@ -96,8 +98,14 @@ function set_default(){
     # Adresa VPN serveru
     [[ -z ${N2NADSB_SERVER} ]] && N2NADSB_SERVER="n2n.czadsb.cz:82"
 
-    # Adresa pro zasilani report zprav
+    # Nazev programu pro zasilani reportu
+    [[ -z ${REPORTER_NAME} ]] && REPORTER_NAME="reporter"
+    # url adresa pro odesilani dat z reportu
     REPORTER_URL="https://rxw.cz/reporter/" #   [[ -z ${REPORTER_URL} ]] && REPORTER_URL="https://report.czadsb.cz"
+    # Seznam sledovanych sluzeb
+    REPORTER_SER="dump1090 dump1090-fa adsbfwd mlat-client vpn-czadsb" 
+    # Interval pro odesilani dat
+    REPORTER_REF="*:6,21,36,51"
 
     # Nazev programu OGN / Flarm
     [[ -z ${OGN_NAME} ]] && OGN_NAME="rtlsdr-ogn"
@@ -115,18 +123,18 @@ function list_rtlsdr(){
     if command -v rtl_biast &>/dev/null ;then
         rtl_biast 2> /tmp/rtlsdr.log
         grep -e "^ " /tmp/rtlsdr.log > /tmp/rtlsdr.list
+        rm -f /tmp/rtlsdr.log
         RTL_SDR=$(cat /tmp/rtlsdr.list | wc -l)
     else
         RTL_SDR=""
     fi
-    # grep -E " ${DEV}:| ${DEV}$" /tmp/rtlsdr.list
 }
 
 # Funkce zjisti informace o systemu a zobrazi je
 function info_system(){
     . /etc/os-release
     STATION_SYSTEM="${PRETTY_NAME}"
-    STATION_USERS=$(users)
+    STATION_USER=$(users)
     STATION_ARCH=$(dpkg --print-architecture)
     STATION_MACHINE=$(uname -m)
     STATION_MODEL=$(grep Model /proc/cpuinfo | awk -F : '{print $2}')
@@ -152,7 +160,7 @@ function info_user(){
         LON=$(echo ${STATION_LON} | sed 's/\./,/')
     fi
     printf "├───────────────────────── Identifikace zarizeni ──────────────────────────┤\n"
-    printf "│ Identifikace zarizeni UIDD: %-42s   │\n" "${STATION_UUID}"
+    printf "│ Identifikace zarizeni UUID: %-42s   │\n" "${STATION_UUID}"
     printf "│ Uzivatel: %-30s  Pojmenovani: %-17s │\n" "${USER_EMAIL}" "${STATION_NAME}"
     printf "│ Souradnice a nadmorska vyska umisteni prijimace:                         │\n"
     printf "│ Zem.sirka: %11.7f° Zem.delka: %11.7f°  Nadmorska vyska: %3d m  │\n" ${LAT} ${LON} "${STATION_ALT}"
@@ -603,7 +611,7 @@ function set_reporter(){
     printf "│ zpristupneni vyse zminenych dat je jen na vas. Zatim jen test.           │\n"
     printf "└──────────────────────────────────────────────────────────────────────────┘\n"
     if [[ "${REPORTER}" != "enable" ]] && [[ "${REPORTER}" != "disable" ]];then
-    if [[ -z ${REPORTER} ]];then
+        if [[ -z ${REPORTER} ]];then
             input "Instalovat Reporter pro zasilani dat ? [Y/n]:" '^[ynYN]*$' "y"
         else
             input "Instalovat Reporter pro zasilani dat ? [y/N]:" '^[ynYN]*$' "n"
@@ -874,8 +882,14 @@ N2NADSB_MASK="255.255.254.0"
 # Reporter
 # instalace reporteru [ notinstall | disable | enable ]
 REPORTER="${REPORTER}"
+# Nazev programu pro zasilani reportu
+REPORTER_NAME="${REPORTER_NAME}"
 # url adresa pro odesilani reportu
 REPORTER_URL="${REPORTER_URL}"
+# Seznam sledovanych sluzeb
+REPORTER_SER="${REPORTER_SER}" 
+# Interval pro odesilani dat
+REPORTER_REF="${REPORTER_REF}"
 
 # OGN / Flarm
 # instalace OGN/Flarm [ notinstall | disable | enable ]
@@ -902,11 +916,14 @@ STATION_SYSTEM="${STATION_SYSTEM}"
 STATION_ARCH="${STATION_ARCH}"
 STATION_MODEL="${STATION_MODEL}"
 STATION_MACHINE="${STATION_MACHINE}"
-STATION_USERS="${STATION_USERS}"
+STATION_PUBIP="${STATION_PUBIP}"
+STATION_USER="${STATION_USER}"
 
 EOM
+# Pokud je povolen reporter, odesli aktualni konfiguraci pro archivaci
     if [ ! "${REPORTER}" == "notinstall" -a ! "${REPORTER}" == "" ];then
         report=$(curl -s -X POST -F "file=@${CFG}" ${REPORTER_URL})
+#        echo $report ; echo
     fi
 }
 # --------------------- Konec funkci pro nastaveni -----------------------------
@@ -1145,6 +1162,23 @@ install_piaware(){
     fi
 }
 
+# Reporter
+install_reporter(){
+    echo
+    echo -n "Reporter"
+    if [[ "${REPORTER}" == "disable" ]] || [[ "${REPORTER}" == "enable" ]];then
+        UnitFileState=$(systemctl show reporter.timer | grep "UnitFileState" | awk -F = '{print $2}' )
+        if [[ "${UnitFileState}" == "" ]] || ${UPGRADE} ;then
+            echo " - instalace / upgrade Reporter"
+            wget -q ${INSTALL_URL}/install-reporter.sh -O /tmp/install.tmp
+            . /tmp/install.tmp
+            rm -f /tmp/install.tmp
+        fi
+        [[ "${UnitFileState}" != "${REPORTER}d" ]] && $SUDO systemctl ${REPORTER} rpimonitor.timer
+    else
+        echo " - instalace neni povolena, neprovadi se zadna zmena."
+    fi
+}
 
 # Funkce postupne pusti jednotlive instalacni skrypty, pokud je na nich zaznamenana zmena
 function install_select(){
@@ -1156,6 +1190,7 @@ function install_select(){
         install_n2nvpn && UPDATE_N2NVPN=false
         install_ogn && UPDATE_OGN=false
         install_piaware && UPDATE_PIAWARE=false
+        install_reporter && UPDATE_REPORTER=false
     else
         ${UPDATE_DUMP1090} && install_dump1090 && UPDATE_DUMP1090=false
         ${UPDATE_ADSBFWD} && install_adsbfwd && UPDATE_ADSBFWD=false
@@ -1164,6 +1199,7 @@ function install_select(){
         ${UPDATE_N2NVPN} && install_n2nvpn && UPDATE_N2NVPN=false
         ${UPDATE_OGN} && install_ogn && UPDATE_OGN=false
         ${UPDATE_PIAWARE} && install_piaware && UPDATE_PIAWARE=false
+        ${UPDATE_REPORTER} && install_reporter || UPDATE_REPORTER=false
     fi
     UPGRADE=false
     UPGRADE_ALL=false
@@ -1255,6 +1291,7 @@ UPDATE_RPIMONITOR=false
 UPDATE_N2NVPN=false
 UPDATE_OGN=false
 UPDATE_PIAWARE=false
+UPDATE_REPORTER=false
 
 # V pripade nove instalace spust pruvodce
 if ${CFG_NEW} ;then
