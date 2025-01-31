@@ -107,6 +107,8 @@ function set_default(){
     # Interval pro odesilani dat
     REPORTER_REF="*:6,21,36,51"
 
+    # Vychozi stav je bez instalace OGN
+    [[ -z ${OGN} ]] && OGN="notinstall"
     # Nazev programu OGN / Flarm
     [[ -z ${OGN_NAME} ]] && OGN_NAME="rtlsdr-ogn"
     #  Vyber rtl-sdr zarizeni
@@ -115,6 +117,13 @@ function set_default(){
     [[ -z ${OGN_PPM} ]] && OGN_PPM=0
     Zesileni rtl-sdr zarizebi
     [[ -z ${OGN_GAIN} ]] && OGN_GAIN=48
+
+    # Vychozi stav je bez instalace PiAware
+    [[ -z ${PIAWARE} ]] && PIAWARE="notinstall"
+    # Pokud jiz existuje uuid pro piaware, tak jej nacti
+    if [[ "${PIAWARE_UI}" == "" ]] && [[ -n "/run/piaware/status.json" ]];then
+        PIAWARE_UI=$(awk -F\" '/unclaimed_feeder_id/ {print $4}' /run/piaware/status.json)
+    fi
 
 }
 
@@ -875,7 +884,6 @@ N2NADSB_NAME="${N2NADSB_NAME}"
 N2NADSB_SERVER="${N2NADSB_SERVER}"
 # prirazena lokalni IP adresa
 N2NADSB_LOCAL="${N2NADSB_LOCAL}"
-LOCAL="${N2NADSB_LOCAL}"
 # Maska pro lokalni sit
 N2NADSB_MASK="255.255.254.0"
 
