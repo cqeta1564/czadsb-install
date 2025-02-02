@@ -91,9 +91,6 @@ if [ "\${REPORTER}" == "notinstall" -o "\${REPORTER}" == "" ];then
     exit 2
 fi
 
-# Pokud neni k dispozici /bin/vcgencmd, nutne doinstalovat balicek lm-sensors
-# sudo apt install lm-sensors
-
 SYSUP=\$(date -d "\$(uptime -s)" +%s) #"          # Nacti kdy byl system naposledy spusten
 UPTIME=\$(( \$(date +%s) - \$SYSUP ))              # Z rozdilu aktualniho casu a spusteni vypocitej uptime
 LOAD=\$(cut -d" " -f1-3 /proc/loadavg)           # Nacti zatizeni prijimace
@@ -108,8 +105,11 @@ else
     TEMP=""
 fi
 
+JOURNAL=\$(dmesg -l 1,2,3 -J | awk '{print $0 \"\n\"}')
+JOURNAL=\"\${JOURNAL:1:-1}\"
+
 D="{\"u\":\"\${STATION_UUID}\","                 # Vytvor json odpoved, prve uuid prijimace, pak dalsi data
-D="\${D}\"sys\":{\"u\":\"\${UPTIME}\",\"l\":\"\${LOAD}\",\${MEMORY},\"t\":\"\${TEMP}\"}"
+D="\${D}\"sys\":{\"u\":\"\${UPTIME}\",\"l\":\"\${LOAD}\",\${MEMORY},\"t\":\"\${TEMP}\"},\$JOURNAL"
 J=""                                            # Nacti status sledovanych sluzeb
 for S in \${REPORTER_SER[@]};do
     systemctl is-enabled \${S}.service 2> /dev/null > /dev/null
