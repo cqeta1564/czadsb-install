@@ -105,8 +105,8 @@ else
     TEMP=""
 fi
 
-JOURNAL=\$(dmesg -l 1,2,3 -J | awk '{print $0 \"\n\"}')
-JOURNAL=\"\${JOURNAL:1:-1}\"
+JOURNAL=\$(dmesg -l 1,2,3 -J | awk '{print \$0 "\n"}')
+JOURNAL="\${JOURNAL:1:-1}"
 
 D="{\"u\":\"\${STATION_UUID}\","                 # Vytvor json odpoved, prve uuid prijimace, pak dalsi data
 D="\${D}\"sys\":{\"u\":\"\${UPTIME}\",\"l\":\"\${LOAD}\",\${MEMORY},\"t\":\"\${TEMP}\"},\$JOURNAL"
