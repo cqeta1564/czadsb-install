@@ -106,10 +106,12 @@ else
 fi
 
 JOURNAL=\$(dmesg -l 1,2,3 -J | awk '{print \$0 "\n"}')
-JOURNAL="\${JOURNAL:1:-1}"
+if [ ! "\$JOURNAL" == "" ];then
+    JOURNAL=",\${JOURNAL:1:-1}"
+fi
 
 D="{\"u\":\"\${STATION_UUID}\","                 # Vytvor json odpoved, prve uuid prijimace, pak dalsi data
-D="\${D}\"sys\":{\"u\":\"\${UPTIME}\",\"l\":\"\${LOAD}\",\${MEMORY},\"t\":\"\${TEMP}\"},\$JOURNAL"
+D="\${D}\"sys\":{\"u\":\"\${UPTIME}\",\"l\":\"\${LOAD}\",\${MEMORY},\"t\":\"\${TEMP}\"}\$JOURNAL"
 J=""                                            # Nacti status sledovanych sluzeb
 for S in \${REPORTER_SER[@]};do
     systemctl is-enabled \${S}.service 2> /dev/null > /dev/null
