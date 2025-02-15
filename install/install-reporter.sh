@@ -17,12 +17,16 @@ REPORTER_SER="dump1090 dump1090-fa adsbfwd mlat-client vpn-czadsb"
 # Interval pro odesilani dat
 REPORTER_REF="*:6,21,36,51"
 
-# Skontroluj parametr umisteni konfiguracniho souboru a pripadne jej nacti
+
+# Skontroluj parametr umisteni konfiguracniho souboru a pripadne jej nacti      
 if [[ -n $1 ]] && [[ -s $1 ]];then
     REPORTER_CFG=$1
     REPORTER_FILE="true"
 elif [[ -n ${CFG} ]] && [[ -s ${CFG} ]];then
     REPORTER_CFG=${CFG}
+    REPORTER_FILE="true"
+elif [[ -s "/etc/default/czadsb.cfg" ]];then
+    REPORTER_CFG="/etc/default/czadsb.cfg"
     REPORTER_FILE="true"
 else
     REPORTER_FILE="false"

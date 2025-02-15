@@ -33,6 +33,12 @@ elif [[ -n ${CFG} ]] && [[ -s ${CFG} ]];then
     # Prevezmy, prednastav uzivatele a instalacni adresar
     [ ! -z ${CZADSB_USER} ] && ADSBFWD_USER=${CZADSB_USER}
     [ ! -z ${CZADSB_FOLDER} ] && ADSBFWD_FOLDER=${CZADSB_FOLDER}
+elif [[ -s "/etc/default/czadsb.cfg" ]];then
+    ADSBFWD_CFG="/etc/default/czadsb.cfg"
+    ADSBFWD_FILE="true"
+    # Prevezmy, prednastav uzivatele a instalacni adresar
+    [ ! -z ${CZADSB_USER} ] && ADSBFWD_USER=${CZADSB_USER}
+    [ ! -z ${CZADSB_FOLDER} ] && ADSBFWD_FOLDER=${CZADSB_FOLDER}
 else
     ADSBFWD_FILE="false"
 fi
@@ -54,8 +60,9 @@ fi
 grep "^${ADSBFWD_USER}:" /etc/passwd > /dev/null
 if [[ "$?" == "1" ]];then
     echo "* Vytvoreni uzivatele \"${ADSBFWD_USER}\" pro spusteni ${ADSBFWD_NAME}"
-#    $SUDO useradd --system --no-create-home --base-dir "/nonexistent" --shell "/usr/sbin/nologin" "${ADSBFWD_USER}"
     $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${ADSBFWD_USER}
+#    $SUDO useradd --no-create-home --system ${ADSBFWD_USER}
+#    $SUDO useradd --system --no-create-home --base-dir "/nonexistent" --shell "/usr/sbin/nologin" "${ADSBFWD_USER}"
 else
     echo "* Uzivatel \"${ADSBFWD_USER}\" jiz existuje"
 fi
@@ -136,7 +143,7 @@ After=network.target
 Type=simple
 User=${ADSBFWD_USER}
 EnvironmentFile=${ADSBFWD_CFG}
-ExecStart=${ADSBFWD_FOLDER}/${ADSBFWD_NAME}.py \${ADSBFWD_SRC} \$ADSBFWD_DST
+ExecStart=${ADSBFWD_FOLDER}/${ADSBFWD_NAME}.py \${ADSBFWD_SRC} \${ADSBFWD_DST}
 SyslogIdentifier=${ADSBFWD_NAME}
 Restart=on-failure
 RestartSec=30

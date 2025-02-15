@@ -37,6 +37,12 @@ elif [[ -n ${CFG} ]] && [[ -s ${CFG} ]];then
     # Prevezmy, prednastav uzivatele a instalacni adresar
     [ ! -z ${CZADSB_USER} ] && N2NADSB_USER=${CZADSB_USER}
     [ ! -z ${CZADSB_FOLDER} ] && N2NADSB_FOLDER=${CZADSB_FOLDER}
+elif [[ -s "/etc/default/czadsb.cfg" ]];then
+    N2NADSB_CFG="/etc/default/czadsb.cfg"
+    N2NADSB_FILE="true"
+    # Prevezmy, prednastav uzivatele a instalacni adresar
+    [ ! -z ${CZADSB_USER} ] && N2NADSB_USER=${CZADSB_USER}
+    [ ! -z ${CZADSB_FOLDER} ] && N2NADSB_FOLDER=${CZADSB_FOLDER}
 else
     N2NADSB_FILE="false"
 fi
@@ -129,7 +135,7 @@ After=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=${N2NADSB_CFG}
-ExecStart=/usr/sbin/edge -a \${N2NADSB_LOCAL} -s ${N2NADSB_MASK} -l ${N2NADSB_SERVER} -c adsb -k adsb123 -b
+ExecStart=/usr/sbin/edge -a \${N2NADSB_LOCAL} -s \${N2NADSB_MASK} -l \${N2NADSB_SERVER} -c adsb -k adsb123 -b
 Restart=on-failure
 RestartSec=30
 RestartPreventExitStatus=64
