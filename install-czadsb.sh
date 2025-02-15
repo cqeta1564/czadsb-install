@@ -121,8 +121,32 @@ function set_default(){
     # Vychozi stav je bez instalace PiAware
     [[ -z ${PIAWARE} ]] && PIAWARE="notinstall"
     # Pokud jiz existuje uuid pro piaware, tak jej nacti
-    if [[ "${PIAWARE_UI}" == "" ]] && [[ -n "/run/piaware/status.json" ]];then
+    if [[ "${PIAWARE_UI}" == "" ]] && [[ -f "/run/piaware/status.json" ]];then
         PIAWARE_UI=$(awk -F\" '/unclaimed_feeder_id/ {print $4}' /run/piaware/status.json)
+    fi
+    if [[ "${PIAWARE_UI}" == "" ]] && [[ -n $(command -v piaware-config) ]];then
+        PIAWARE_UI=$(piaware-config -show feeder-id)
+    fi
+    
+    # Vychozi nastaveni flightradar24 - fr24
+    if [[ -z ${FR24} ]] || [[ "${FR24}" == "notinstall" ]];then 
+        FR24_state=$(systemctl show fr24feed.service | grep UnitFileState | awk -F = '{print $2}' | tr -d '\n' )
+        if [[ "${FR24_state}" == "disabled" ]];then
+            FR24="disable"
+        elif [[ "${FR24_state}" == "enabled" ]];then
+            FR24="enable"
+        else    
+            FR24="notinstall"
+        fi
+    fi
+    [[ -z ${FR24_NAME} ]] && FR24_NAME="fr24feed"
+    if [[ -f "/etc/fr24feed.ini" ]];then
+        [[ -z ${FR24_RECEIVER} ]] && FR24_RECEIVER=$(awk -F\" '/receiver/ {print $2}' /etc/fr24feed.ini)
+        [[ -z ${FR24_KEY} ]] && FR24_KEY=$(awk -F\" '/fr24key/ {print $2}' /etc/fr24feed.ini)
+        [[ -z ${FR24_HOST} ]] && FR24_HOST=$(awk -F\" '/host/ {print $2}' /etc/fr24feed.ini)
+    else
+        [[ -z ${FR24_RECEIVER} ]] && FR24_RECEIVER="beast-tcp"
+        [[ -z ${FR24_HOST} ]] && FR24_HOST="127.0.0.1:30005"
     fi
 
 }
@@ -306,7 +330,7 @@ function menu_edit(){
 function menu_third(){
     printf "┌─────────────────────── ADSB servery tretich stran ───────────────────────┐\n"
     printf "│ a. Piaware                      (https://www.flightaware.com)            │\n"
-    printf "│ b. Flightradar24                (https://www.flightradar24.com)        x │\n"
+    printf "│ b. Flightradar24                (https://www.flightradar24.com)          │\n"
     printf "│ c. ADSBHub                      (https://www.adsbhub.org)              x │\n"
     printf "│ d. ADS-B Exchange               (https://www.adsbexchange.com/)        x │\n"
     printf "│ e. adsb.fi                      (https://adsb.fi/)                     x │\n"
@@ -813,6 +837,60 @@ function set_piaware(){
     fi
 }
 
+# Funkce nastavi paramatru pro Flightradar24 - fr24
+function set_fr24(){
+    printf "┌───────────────────────── Flightradar24 / FR24 ───────────────────────────┐\n"
+    printf "│ Flightradar24 ( https://www.flightradar24.com ) umozni predavat  data na │\n"
+    printf "│ profesionalni server. Jako poskytovatel dat muzete ziskat bezplatny ucet │\n"
+    printf "│ na teto platforme a sledovat letovy provoz celeho sveta.                 │\n"
+    printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+    if [[ "${FR24}" != "enable" ]] && [[ "${FR24}" != "disable" ]];then
+        if [[ -z ${FR24} ]];then
+            input "Instalovat Flightradar24 ? [Y/n]:" '^[ynYN]*$' "y"
+        else
+            input "Instalovat Flightradar24 ? [y/N]:" '^[ynYN]*$' "n"
+        fi
+        if [[ "$X" == "n" ]] || [[ "$X" == "N" ]];then
+            FR24="notinstall"
+        else
+            FR24="enable"
+        fi
+    fi
+    if [[ "${FR24}" =~ "disable" ]] || [[ "${FR24}" =~ "enable" ]];then
+        if [[ "${FR24}" == "diseble" ]];then
+            input "Ma se Flightradar24 spoustet automaticky [y/N]:" '^[ynYN]*$' "n"
+        else
+            input "Ma se Flightradar24 spoustet automaticky [Y/n]:" '^[ynYN]*$' "y"
+        fi
+        if [[ "$X" == "n" ]] || [[ "$X" == "N" ]];then
+            FR24="disable"
+        else
+            FR24="enable"
+        fi
+        printf "┌───────────────────────────── Flightradar24 ──────────────────────────────┐\n"
+        printf "│ Pri nove instalaci bude nasledovat  spusteni registrace noveho prijimace │\n"
+        printf "│ na fr24.  V pripade  preinstalovani,  doporucujeme  pouzit jiz stavajici │\n"
+        printf "│ zdileny klic (Sharing key). Ten naleznete na strance:                    │\n"
+        printf "│                       https://www.flightradar24.com/account/data-sharing │\n"
+        if [[ -n ${FR24_KEY} ]];then
+            printf "│                                                                          │\n"
+            printf "│          Na tomto zarizeni byl nalezen kod '${FR24_KEY}'.           │\n"
+        fi
+        printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+        if [[ "${FR24_KEY}" == "" ]];then
+            input "Pouzit stavajici zdileny klic (Sharing key) FR24 ? [y/N]" '^[ynYN]*$' "n"
+        else
+            input "Pouzit stavajici zdileny klic (Sharing key) FR24 ? [Y/n]:" '^[ynYN]*$' "y"
+        fi
+        if [[ "$X" == "y" ]] || [[ "$X" == "Y" ]];then
+            input "Zadejte zdileny klic (Sharing key) prijmace [${FR24_KEY}]:" '^[0-9abcdef]{16}$' "${FR24_KEY}"
+            FR24_KEY=$X
+        else
+            FR24_KEY=""
+        fi
+        UPDATE_FR24=true
+    fi
+}
 
 # Funkce ulozi nastavena data do konfiguracniho souboru
 function set_cfg(){
@@ -916,6 +994,18 @@ OGN_GAIN="${OGN_GAIN}"
 PIAWARE="${PIAWARE}"
 # Unique Identifier prijimace - je potreba pro obnovu, jinak je pouzito nove
 PIAWARE_UI="${PIAWARE_UI}"
+
+# Flightradar24 - fr24
+# Instalace Flightradar24 [ notinstall | disable | enable ]
+FR24="${FR24}"
+# Nazev sluzby Flightradar24
+FR24_NAME="${FR24_NAME}"
+# Sharing key pro Flightradar24
+FR24_KEY="${FR24_KEY}"
+# Zdroj ADSB dat pro preposilani
+FR24_HOST="${FR24_HOST}"
+# Format zdroje ADSB dat
+FR24_RECEIVER="${FR24_RECEIVER}"
 
 # Informace o zarizeni:
 # Jmeno uzivatele pod kterym se spusti nektere skripty 
@@ -1188,6 +1278,32 @@ install_reporter(){
     fi
 }
 
+# Flightradar24 / FR24
+install_fr24(){
+    echo
+    echo -n "Flightradar24 / FR24"
+    if [[ "${FR24}" == "disable" ]] || [[ "${FR24}" == "enable" ]];then
+        UnitFileState=$(systemctl show ${FR24_NAME}.service | grep "UnitFileState" | awk -F = '{print $2}' )
+        if [[ "${UnitFileState}" == "" ]] || ${UPGRADE} ;then
+            echo " - instalace / upgrade Flightradar24 - fr24"
+            wget -q ${INSTALL_URL}/install-fr24.sh -O /tmp/install.tmp
+            . /tmp/install.tmp
+            rm -f /tmp/install.tmp
+            UnitFileState=$(systemctl show ${FR24_NAME}.service | grep "UnitFileState" | awk -F = '{print $2}' )
+        fi
+        [[ "${UnitFileState}" != "${FR24}d" ]] && $SUDO systemctl ${FR24} ${FR24_NAME}.service
+        if [[ "$(systemctl is-active ${N2NADSB_NAME})" != "active" ]];then
+            echo " - Warning: Sluzba ${FR24_NAME} neni spustena !"
+        else
+            echo " - restart sluzbu ${FR24_NAME} pro aplikaci zmen."
+            $SUDO systemctl restart ${FR24_NAME}.service
+        fi
+    else
+        echo " - instalace neni povolena, neprovadi se zadna zmena."
+    fi
+}
+
+
 # Funkce postupne pusti jednotlive instalacni skrypty, pokud je na nich zaznamenana zmena
 function install_select(){
     if ${UPGRADE_ALL} ;then
@@ -1199,6 +1315,7 @@ function install_select(){
         install_ogn && UPDATE_OGN=false
         install_piaware && UPDATE_PIAWARE=false
         install_reporter && UPDATE_REPORTER=false
+        install_fr24 && UPDATE_FR24=false
     else
         ${UPDATE_DUMP1090} && install_dump1090 && UPDATE_DUMP1090=false
         ${UPDATE_ADSBFWD} && install_adsbfwd && UPDATE_ADSBFWD=false
@@ -1208,6 +1325,7 @@ function install_select(){
         ${UPDATE_OGN} && install_ogn && UPDATE_OGN=false
         ${UPDATE_PIAWARE} && install_piaware && UPDATE_PIAWARE=false
         ${UPDATE_REPORTER} && install_reporter || UPDATE_REPORTER=false
+        ${UPDATE_FR24} && install_fr24 && UPDATE_FR24=false
     fi
     UPGRADE=false
     UPGRADE_ALL=false
@@ -1224,7 +1342,7 @@ function offer_third(){
         case "$X" in
             a) set_piaware; clear   # PiaWare
             ;;
-            b) clear; info_logo     # Flightradar24
+            b) set_fr24; clear;     # Flightradar24
             ;;
             *) return
             ;;
@@ -1300,6 +1418,7 @@ UPDATE_N2NVPN=false
 UPDATE_OGN=false
 UPDATE_PIAWARE=false
 UPDATE_REPORTER=false
+UPDATE_FR24=false
 
 # V pripade nove instalace spust pruvodce
 if ${CFG_NEW} ;then
