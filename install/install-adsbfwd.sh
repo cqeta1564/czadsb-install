@@ -61,8 +61,6 @@ grep "^${ADSBFWD_USER}:" /etc/passwd > /dev/null
 if [[ "$?" == "1" ]];then
     echo "* Vytvoreni uzivatele \"${ADSBFWD_USER}\" pro spusteni ${ADSBFWD_NAME}"
     $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${ADSBFWD_USER}
-#    $SUDO useradd --no-create-home --system ${ADSBFWD_USER}
-#    $SUDO useradd --system --no-create-home --base-dir "/nonexistent" --shell "/usr/sbin/nologin" "${ADSBFWD_USER}"
 else
     echo "* Uzivatel \"${ADSBFWD_USER}\" jiz existuje"
 fi

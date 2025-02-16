@@ -29,6 +29,9 @@ elif [[ -n ${CFG} ]] && [[ -s ${CFG} ]];then
     MLAT_FILE="true"
     # Prevezmy, prednastav uzivatele
     [ ! -z ${CZADSB_USER} ] && MLAT_USER=${CZADSB_USER}
+elif [[ -s "/etc/default/czadsb.cfg" ]];then
+    MLAT_CFG="/etc/default/czadsb.cfg"
+    MLAT_FILE="true"
 else
     MLAT_FILE="false"
 fi
@@ -146,7 +149,7 @@ After=network-online.target
 Type=simple
 User=${MLAT_USER}
 EnvironmentFile=${MLAT_CFG}
-ExecStart=${INSTALL_FILE} --input-type dump1090 --input-connect localhost:30005 --lat \${STATION_LAT} --lon \${STATION_LON} --alt \${STATION_ALT} --server \${MLAT_SERVER} --results \${MLAT_FORMAT},\${MLAT_RESULT} --user \${STATION_NAME}
+ExecStart=${INSTALL_FILE} '--input-type' 'dump1090' '--input-connect' 'localhost:30005' '--lat' '\${STATION_LAT}' '--lon' '\${STATION_LON}' '--alt' '\${STATION_ALT}' '--server' '\${MLAT_SERVER}' '--results' '\${MLAT_FORMAT},\${MLAT_RESULT}' '--user' '\${STATION_NAME}'
 SyslogIdentifier=${MLAT_NAME}
 Restart=on-failure
 RestartSec=30

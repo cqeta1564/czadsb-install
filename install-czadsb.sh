@@ -113,9 +113,9 @@ function set_default(){
     [[ -z ${OGN_NAME} ]] && OGN_NAME="rtlsdr-ogn"
     #  Vyber rtl-sdr zarizeni
     [[ -z ${OGN_DEV} ]] && OGN_DEV=1
-    Kalibrace rtl-sdr zarizeni
+    # Kalibrace rtl-sdr zarizeni
     [[ -z ${OGN_PPM} ]] && OGN_PPM=0
-    Zesileni rtl-sdr zarizebi
+    # Zesileni rtl-sdr zarizebi
     [[ -z ${OGN_GAIN} ]] && OGN_GAIN=48
 
     # Vychozi stav je bez instalace PiAware
@@ -148,6 +148,9 @@ function set_default(){
         [[ -z ${FR24_RECEIVER} ]] && FR24_RECEIVER="beast-tcp"
         [[ -z ${FR24_HOST} ]] && FR24_HOST="127.0.0.1:30005"
     fi
+
+    # Vychozi nastaveni pro ADS-B Exchange 
+    [[ -z ${ADSBEXCHANGE} ]] && ADSBEXCHANGE="notinstall"
 
 }
 
@@ -332,7 +335,7 @@ function menu_third(){
     printf "│ a. Piaware                      (https://www.flightaware.com)            │\n"
     printf "│ b. Flightradar24                (https://www.flightradar24.com)          │\n"
     printf "│ c. ADSBHub                      (https://www.adsbhub.org)              x │\n"
-    printf "│ d. ADS-B Exchange               (https://www.adsbexchange.com/)        x │\n"
+    printf "│ d. ADS-B Exchange               (https://www.adsbexchange.com/)          │\n"
     printf "│ e. adsb.fi                      (https://adsb.fi/)                     x │\n"
     printf "│ f. ADS-B One                    (https://adsb.one)                     x │\n"
     printf "│ g. ADSB.lol                     (https://adsb.lol)                     x │\n"
@@ -892,6 +895,40 @@ function set_fr24(){
     fi
 }
 
+# Funkce nastavi paramatru pro adsbexchange
+function set_adsbexchange(){
+    printf "┌──────────────────────────── ADS-B Exchange ──────────────────────────────┐\n"
+    printf "│ 'ADS-B Exchange' je dalsi serve sledujici letecky provoz po celem svete. │\n"
+    printf "│ Data jsou pak dostupna na adrese https://www.adsbexchange.com/           │\n"
+    printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+    if [[ "${ADSBEXCHANGE}" != "enable" ]] && [[ "${ADSBEXCHANGE}" != "disable" ]];then
+        if [[ -z ${ADSBEXCHANGE} ]];then
+            input "Instalovat ADS-B Exchange ? [Y/n]:" '^[ynYN]*$' "y"
+        else
+            input "Instalovat ADS-B Exchange ? [y/N]:" '^[ynYN]*$' "n"
+        fi
+        if [[ "$X" == "n" ]] || [[ "$X" == "N" ]];then
+            ADSBEXCHANGE="notinstall"
+        else
+            ADSBEXCHANGE="enable"
+        fi
+    fi
+    if [[ "${ADSBEXCHANGE}" =~ "disable" ]] || [[ "${ADSBEXCHANGE}" =~ "enable" ]];then
+        if [[ "${ADSBEXCHANGE}" == "diseble" ]];then
+            input "Ma se ADSBEXCHANGE spoustet automaticky [y/N]:" '^[ynYN]*$' "n"
+        else
+            input "Ma se ADSBEXCHANGE spoustet automaticky [Y/n]:" '^[ynYN]*$' "y"
+        fi
+        if [[ "$X" == "n" ]] || [[ "$X" == "N" ]];then
+            ADSBEXCHANGE="disable"
+        else
+            ADSBEXCHANGE="enable"
+        fi
+        UPDATE_ADSBEXCHANGE=true
+    fi
+}
+
+
 # Funkce ulozi nastavena data do konfiguracniho souboru
 function set_cfg(){
 /bin/cat <<EOM > ${CFG}
@@ -1006,6 +1043,10 @@ FR24_KEY="${FR24_KEY}"
 FR24_HOST="${FR24_HOST}"
 # Format zdroje ADSB dat
 FR24_RECEIVER="${FR24_RECEIVER}"
+
+# ADS-B Exchange 
+# instalace ADS-B Exchange [ notinstall | disable | enable ]
+ADSBEXCHANGE="${ADSBEXCHANGE}"
 
 # Informace o zarizeni:
 # Jmeno uzivatele pod kterym se spusti nektere skripty 
@@ -1303,6 +1344,27 @@ install_fr24(){
     fi
 }
 
+# ADS-B Exchange
+install_adsbexchange(){
+    echo
+    echo -m "ADS-b Exchange"
+    if [[ "${ADSBEXCHANGE}" == "disable" ]] || [[ "${ADSBEXCHANGE}" == "enable" ]];then
+        UnitFileStateF=$(systemctl show adsbexchange-feed.service | grep "UnitFileState" | awk -F = '{print $2}' )
+        UnitFileStateM=$(systemctl show adsbexchange-mlat.service | grep "UnitFileState" | awk -F = '{print $2}' )
+        if [[ "${UnitFileStateF}" == "" ]] || [[ "${UnitFileStateM}" == "" ]] || ${UPGRADE} ;then
+            echo " - instalace / upgrade Flightradar24 - fr24"
+            wget -q ${INSTALL_URL}/install-adsbexchange.sh -O /tmp/install.tmp
+            . /tmp/install.tmp
+            rm -f /tmp/install.tmp
+        fi
+        UnitFileStateF=$(systemctl show adsbexchange-feed.service | grep "UnitFileState" | awk -F = '{print $2}' )
+        UnitFileStateM=$(systemctl show adsbexchange-mlat.service | grep "UnitFileState" | awk -F = '{print $2}' )
+        [[ "${UnitFileStateF}" != "${ADSBEXCHANGE}d" ]] && $SUDO systemctl ${ADSBEXCHANGE} adsbexchange-feed.service
+        [[ "${UnitFileStateM}" != "${ADSBEXCHANGE}d" ]] && $SUDO systemctl ${ADSBEXCHANGE} adsbexchange-mlat.service
+    else
+        echo " - instalace neni povolena, neprovadi se zadna zmena."
+    fi
+}
 
 # Funkce postupne pusti jednotlive instalacni skrypty, pokud je na nich zaznamenana zmena
 function install_select(){
@@ -1316,6 +1378,7 @@ function install_select(){
         install_piaware && UPDATE_PIAWARE=false
         install_reporter && UPDATE_REPORTER=false
         install_fr24 && UPDATE_FR24=false
+        install_adsbexchange && UPDATE_ADSBEXCHANGE=false
     else
         ${UPDATE_DUMP1090} && install_dump1090 && UPDATE_DUMP1090=false
         ${UPDATE_ADSBFWD} && install_adsbfwd && UPDATE_ADSBFWD=false
@@ -1326,6 +1389,7 @@ function install_select(){
         ${UPDATE_PIAWARE} && install_piaware && UPDATE_PIAWARE=false
         ${UPDATE_REPORTER} && install_reporter || UPDATE_REPORTER=false
         ${UPDATE_FR24} && install_fr24 && UPDATE_FR24=false
+        ${UPDATE_ADSBEXCHANGE} && install_adsbexchange && UPDATE_ADSBEXCHANGE=false
     fi
     UPGRADE=false
     UPGRADE_ALL=false
@@ -1340,9 +1404,11 @@ function offer_third(){
         info_logo; info_system; info_user end;
         menu_third
         case "$X" in
-            a) set_piaware; clear   # PiaWare
+            a) set_piaware; clear       # PiaWare
             ;;
-            b) set_fr24; clear;     # Flightradar24
+            b) set_fr24; clear;         # Flightradar24
+            ;;
+            d) set_adsbexchange; clear; # ADS-B Exchange
             ;;
             *) return
             ;;
@@ -1419,6 +1485,7 @@ UPDATE_OGN=false
 UPDATE_PIAWARE=false
 UPDATE_REPORTER=false
 UPDATE_FR24=false
+UPDATE_ADSBEXCHANGE=false
 
 # V pripade nove instalace spust pruvodce
 if ${CFG_NEW} ;then
