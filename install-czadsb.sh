@@ -8,8 +8,8 @@ CFG="/etc/default/czadsb.cfg"
 
 
 # Cesta k instalacnim skriptum
-#INSTALL_URL="https://rxw.cz/adsb/install"
-INSTALL_URL="https://raw.githubusercontent.com/Tydyt-cz/czadsb-install/refs/heads/main/install"
+INSTALL_URL="https://rxw.cz/adsb/install"
+#INSTALL_URL="https://raw.githubusercontent.com/Tydyt-cz/czadsb-install/refs/heads/main/install"
 #INSTALL_URL="https://raw.githubusercontent.com/CZADSB/czadsb-install/refs/heads/main/install"
 
 # echo ${{ vars.URL_SCRIPTS }}
@@ -119,13 +119,22 @@ function set_default(){
     [[ -z ${OGN_GAIN} ]] && OGN_GAIN=48
 
     # Vychozi stav je bez instalace PiAware
-    [[ -z ${PIAWARE} ]] && PIAWARE="notinstall"
+    if [[ -z ${PIAWARE} ]] || [[ "${PIAWARE}" == "notinstall" ]];then 
+        PIAWARE_state=$(systemctl show piaware.service | grep UnitFileState | awk -F = '{print $2}' | tr -d '\n' )
+        if [[ "${PIAWARE_state}" == "disabled" ]];then
+            PIAWARE="install"
+        elif [[ "${PIAWARE_state}" == "enabled" ]];then
+            PIAWARE="install"
+        else    
+            PIAWARE="notinstall"
+        fi
+    fi
     # Pokud jiz existuje uuid pro piaware, tak jej nacti
     if [[ "${PIAWARE_UI}" == "" ]] && [[ -f "/run/piaware/status.json" ]];then
         PIAWARE_UI=$(awk -F\" '/unclaimed_feeder_id/ {print $4}' /run/piaware/status.json)
     fi
     if [[ "${PIAWARE_UI}" == "" ]] && [[ -n $(command -v piaware-config) ]];then
-        PIAWARE_UI=$(piaware-config -show feeder-id)
+        PIAWARE_UI=$($SUDO piaware-config -show feeder-id)
     fi
     
     # Vychozi nastaveni flightradar24 - fr24
@@ -825,6 +834,9 @@ function set_piaware(){
         if [[ "${PIAWARE_UI}" == "" ]] && [[ -n "/run/piaware/status.json" ]];then
             PIAWARE_UI=$(awk -F\" '/unclaimed_feeder_id/ {print $4}' /run/piaware/status.json)
         fi
+        if [[ "${PIAWARE_UI}" == "" ]] && [[ -n $(command -v piaware-config) ]];then
+            PIAWARE_UI=$($SUDO piaware-config -show feeder-id)
+        fi
         echo
         printf "┌────────────────────────────── FlightAware ───────────────────────────────┐\n"
         printf "│ FlightAware pro rozliseni prijimacu  pouziva unikatni idendifikator. Ten │\n"
@@ -832,7 +844,13 @@ function set_piaware(){
         printf "│ prijmace.  Pokud  vsak  provadime  preinstalaci  stavajiciho,  je  dobre │\n"
         printf "│ nastavit tento kod pro automaticke sparovani na strane FlightAware.  Kod │\n"
         printf "│ v tomto  pripade  najdeme  pod  svym  uctem  na  strankach  FlightAware. │\n"
-        printf "│    ( Pro novou instalaci ponechte prazdne, doplni se automaticky ! )     │\n"
+
+        if [[ -n ${PIAWARE_UI} ]];then
+            printf "│                                                                          │\n"
+            printf "│    Na zarizeni byl nalezen kod: '${PIAWARE_UI}'      │\n"
+        else
+            printf "│    ( Pro novou instalaci ponechte prazdne, doplni se automaticky ! )     │\n"
+        fi
         printf "└──────────────────────────────────────────────────────────────────────────┘\n"
         input "UI [${PIAWARE_UI}]:" '^[-0-9abcdef]{36}*$' "${PIAWARE_UI}"
         PIAWARE_UI=${X}
@@ -1430,7 +1448,7 @@ fi
 set_czadsb
 
 # Over nainstalovani rtl sdr ovladacu a pripadne je doinstaluj
-if ! command -v rtl_biast &>/dev/null ;then
+if ! command -v rtl_test &>/dev/null ;then
     clear
     info_logo
     info_system "end"
