@@ -8,8 +8,8 @@ CFG="/etc/default/czadsb.cfg"
 
 
 # Cesta k instalacnim skriptum
-INSTALL_URL="https://rxw.cz/adsb/install"
-#INSTALL_URL="https://raw.githubusercontent.com/Tydyt-cz/czadsb-install/refs/heads/main/install"
+#INSTALL_URL="https://rxw.cz/adsb/install"
+INSTALL_URL="https://raw.githubusercontent.com/Tydyt-cz/czadsb-install/refs/heads/main/install"
 #INSTALL_URL="https://raw.githubusercontent.com/CZADSB/czadsb-install/refs/heads/main/install"
 
 # echo ${{ vars.URL_SCRIPTS }}
@@ -1308,11 +1308,13 @@ install_piaware(){
             . /tmp/install.tmp
             rm -f /tmp/install.tmp
         fi
-        [[ "${UnitFileState}" != "generated" ]] && [[ "${UnitFileState}" != "${PIAWARE}d" ]] && $SUDO systemctl ${PIAWARE} ${PIAWARE_NAME}.service
+        UnitFileState=$(systemctl show piaware | grep "UnitFileState" | awk -F = '{print $2}')
         [[ "${UnitFileState}" == "generated" ]] && $SUDO /lib/systemd/systemd-sysv-install ${PIAWARE} ${PIAWARE_NAME}
+        [[ "${UnitFileState}" != "generated" ]] && [[ "${UnitFileState}" != "${PIAWARE}d" ]] && $SUDO systemctl ${PIAWARE} ${PIAWARE_NAME}.service
 
         if [[ -n ${PIAWARE_UI} ]];then
             $SUDO piaware-config feeder-id ${PIAWARE_UI}
+            $SUDO systemctl restart piaware.service
         fi
     else
         echo " - instalace neni povolena, neprovadi se zadna zmena."
@@ -1351,7 +1353,7 @@ install_fr24(){
             UnitFileState=$(systemctl show ${FR24_NAME}.service | grep "UnitFileState" | awk -F = '{print $2}' )
         fi
         [[ "${UnitFileState}" != "${FR24}d" ]] && $SUDO systemctl ${FR24} ${FR24_NAME}.service
-        if [[ "$(systemctl is-active ${N2NADSB_NAME})" != "active" ]];then
+        if [[ "$(systemctl is-active ${FR24_NAME})" != "active" ]];then
             echo " - Warning: Sluzba ${FR24_NAME} neni spustena !"
         else
             echo " - restart sluzbu ${FR24_NAME} pro aplikaci zmen."
@@ -1407,7 +1409,7 @@ function install_select(){
         ${UPDATE_PIAWARE} && install_piaware && UPDATE_PIAWARE=false
         ${UPDATE_REPORTER} && install_reporter || UPDATE_REPORTER=false
         ${UPDATE_FR24} && install_fr24 && UPDATE_FR24=false
-        ${UPDATE_ADSBEXCHANGE} && install_adsbexchange && UPDATE_ADSBEXCHANGE=false
+        ${UPDATE_ADSBEXCHANGE} && install_adsbexchange || UPDATE_ADSBEXCHANGE=false
     fi
     UPGRADE=false
     UPGRADE_ALL=false
@@ -1520,6 +1522,8 @@ if ${CFG_NEW} ;then
     set_n2nvpn
     set_reporter
     set_cfg
+    UPGRADE=true
+    install_select
 fi
 
 while true; do

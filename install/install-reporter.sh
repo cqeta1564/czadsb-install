@@ -101,9 +101,9 @@ LOAD=\$(cut -d" " -f1-3 /proc/loadavg)           # Nacti zatizeni prijimace
                                                 # Z free nacti udaje o vyuziti pameti
                                                 # 1:Mem  2:total  3:used  4:free  5:shared  6:buff/cache  7:available
 MEMORY=\$(free | awk '/Mem/{print "\"m\":\""\$2" "\$3" "\$4" "\$6"\""}') # available = total - used
-if [ -f /bin/vcgencmd ];then
-    TEMP=\$(/bin/vcgencmd measure_temp | tr -d "temp='C")
-elif [ -f /bin/sensors ];then
+if command -v vcgencmd > /dev/null ;then
+    TEMP=\$(vcgencmd measure_temp | tr -d "temp='C")
+elif command -v sensors > /dev/null ;then
     TEMP=\$(sensors | awk '/temp1:/{print \$2}' | tr -d '+°C')
 else
     TEMP=""

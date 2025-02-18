@@ -61,18 +61,18 @@ EOM
 
 else                                                    # Pokud neni zadan key, vypis napovedu a spust registracniho pruvodce
     [[ -z ${STATION_ALT} ]] && STATION_ALT="0"
-    FR_ALT=$(( ${STATION_ALT} * 328084 / 100000 ))      # preved z m na stopy
+    FR24_ALT=$(( ${STATION_ALT} * 328084 / 100000 ))      # preved z m na stopy
     printf "┌────────────────────── Registrace na Flightradar24 ───────────────────────┐\n"
     printf "│ Zadali jste novou registraci na Flightradar24, ktera bude ted spustena.  │\n"
     printf "│ V prubehu registrrace budete vyzvani k zadani nasledujicich dat:         │\n"
     printf "│                                                                          │\n"
-    printf "│ * Registracni email na Flightradar24: %-33s  │\n" "${USER_EMAIL}"
+    printf "│ * Registracni ! email na Flightradar24: %-32s │\n" "${USER_EMAIL}"
     printf "│ * Na sharing key jen potvrtdime 'Enter'                                  │\n"
     printf "│ * Podilet se na odesilani MLAT dat: no                                   │\n"
     printf "│ * Souradnice umisteni prijimace Lat: %7.4f, Lon: %8.4f              │\n" "${STATION_LAT}" "${STATION_LON}"
     printf "│ * Nadmorskou vysku umisteni anteny ve stopach: %5d (feet)              │\n" "${FR24_ALT}"
     printf "│ * Overime nejblizsi zjistene letiste a pokud souhlasi potvrdime: yes     │\n"
-    printf "│                                                                          │\n"
+    printf "│ * Potvrzeni autoconfigu: yes                                             │\n"
     printf "└──────────────────────────────────────────────────────────────────────────┘\n"
 
     $SUDO fr24feed-signup-adsb
