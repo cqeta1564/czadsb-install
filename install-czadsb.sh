@@ -62,6 +62,8 @@ function set_default(){
     
     # Jednoznacny identifikator stanice
     [[ -z ${STATION_UUID} ]] && STATION_UUID=$(cat /proc/sys/kernel/random/uuid)
+    # Povoleni upgrade systemu [auto|enable|disable]
+    [[ -z ${STATION_UPGRADE} ]] && STATION_UPGRADE=enable
     
     # Jmeno uzivatele pod kterym se spusti nektere skripty
     [[ -z ${CZADSB_USER} ]] && CZADSB_USER="adsb"
@@ -103,9 +105,9 @@ function set_default(){
     # url adresa pro odesilani dat z reportu
     REPORTER_URL="https://rxw.cz/reporter/" #   [[ -z ${REPORTER_URL} ]] && REPORTER_URL="https://report.czadsb.cz"
     # Seznam sledovanych sluzeb
-    REPORTER_SER="dump1090 dump1090-fa adsbfwd mlat-client vpn-czadsb" 
+    [[ -z ${REPORTER_SER} ]] && REPORTER_SER="dump1090 dump1090-fa adsbfwd mlat-client vpn-czadsb" 
     # Interval pro odesilani dat
-    REPORTER_REF="*:6,21,36,51"
+    [[ -z ${REPORTER_REF} ]] && REPORTER_REF="*:6,21,36,51"
 
     # Vychozi stav je bez instalace OGN
     [[ -z ${OGN} ]] && OGN="notinstall"
@@ -322,6 +324,15 @@ function info_exit(){
     printf "└──────────────────────────────────────────────────────────────────────────┘\n"
 }
 
+function info_install(){
+    printf "┌─────────────────────── Zakladni nastaveni hotovo ────────────────────────┐\n"
+    printf "│  Pro prvni instalaci je vse potrebne nastaveno. Bude nasledovat vlastni  │\n"
+    printf "│                   instalace dle predchozi konfigurace.                   │\n"
+    printf "│  Pokracujte klavesou enter ...                                           │\n"
+    printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+    input ""
+}
+
 # Funkce nabidne moznosti editace
 function menu_edit(){
     printf "┌──────────────────────────── Uprava / editace ────────────────────────────┐\n"
@@ -347,13 +358,15 @@ function menu_third(){
     printf "│ d. ADS-B Exchange               (https://www.adsbexchange.com/)          │\n"
     printf "│ e. adsb.fi                      (https://adsb.fi/)                     x │\n"
     printf "│ f. ADS-B One                    (https://adsb.one)                     x │\n"
-    printf "│ g. ADSB.lol                     (https://adsb.lol)                     x │\n"
     printf "│ h. TheAirTraffic                (https://theairtraffic.com)            x │\n"
-    printf "│ i. adsb.chaos-consulting        (https://adsb.chaos-consulting.de)     x │\n"
+    printf "│ i. adsb.chaos-consulting        (https://adsb.chaos-consulting.de)     * │\n"
     printf "│ j. Opensky Network              (https://opensky-network.org)          x │\n"
     printf "│   Poznamka:  Ve vystavbe, zatim podporovane jen nektere (neoznacene x)!  │\n"
+    printf "│ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  │\n"
+    printf "│ Aplikuj zmeny + upgrade  - v                                             │\n"
+    printf "│ Zpet do hlavniho menu    - Enter                                         │\n"
     printf "├──────────────────────────────────────────────────────────────────────────┘\n"
-    input "* Vase volba [a - d] ?" '^[a-d]{0,1}$' ""
+    input "* Vase volba [a-d v] ?" '^[a-dv]{0,1}$' ""
 }
 
 
@@ -1080,12 +1093,34 @@ EOM
 # Pokud je povolen reporter, odesli aktualni konfiguraci pro archivaci
     if [ ! "${REPORTER}" == "notinstall" -a ! "${REPORTER}" == "" ];then
         report=$(curl -s -X POST -F "file=@${CFG}" ${REPORTER_URL})
-#        echo $report ; echo
     fi
 }
 # --------------------- Konec funkci pro nastaveni -----------------------------
 
 # ------------------------ Fumkce pro instalaci --------------------------------
+function install_upgrade(){
+    printf "┌──────────────────── Aktualizace operacniho systemu  ─────────────────────┐\n"
+    printf "│  Byly detekovany aktualizace vaseho s sytemu. Jednoznacne je doporuceno  │\n"
+    printf "│  udrzovat  system  aktualni.  Proto  doporucujeme  proves  aktualizaci.  │\n"
+    if [[ "${STATION_UPGRADE}" == "auto" ]];then
+        printf "│                                                                          │\n"
+        printf "│  Mate nastavenou automatickou aktualizaci, proto bude nasledne spustena. │\n"
+    fi
+    printf "└──────────────────────────────────────────────────────────────────────────┘\n"
+    echo
+    if [[ "${STATION_UPGRADE}" != "auto" ]];then
+        input "Provest aktualizaci systemu [Y/n]" '^[ynYN]*$' "y"
+    fi
+    if [[ "$X" == "y" ]] || [[ "$X" == "Y" ]] || [[ "${STATION_UPGRADE}" == "auto" ]];then
+        $SUDO apt update
+        $SUDO apt upgrade -y
+        $SUDO apt dist-upgrade -y
+        $SUDO apt autoremove -y
+    else
+        STATION_UPGRADE=disable
+    fi 
+}
+
 # Funkce zobrazi informaci pred instalaci ovladacu SDR RTL a nasledne provede instalaci
 function install_rtl_sdr(){
     printf "┌────────────────────── Instalace ovladacu RTL SDR  ───────────────────────┐\n"
@@ -1413,7 +1448,6 @@ function install_select(){
     fi
     UPGRADE=false
     UPGRADE_ALL=false
-    set_cfg
 }
 # ------------------------ Konec definic funkci --------------------------------
 
@@ -1429,6 +1463,10 @@ function offer_third(){
             b) set_fr24; clear;         # Flightradar24
             ;;
             d) set_adsbexchange; clear; # ADS-B Exchange
+            ;;
+            v)  UPGRADE=true            # Aplikovat zmenu + upgrade
+                install_select
+                echo; input "Pro pokracovani stiskni enter ..."
             ;;
             *) return
             ;;
@@ -1514,6 +1552,7 @@ if ${CFG_NEW} ;then
     info_newinst
     set_expert
     set_identifikace
+# set old set   report=$(curl -d "user=${USER_EMAIL}&statiom=${STATION_NAME}" -X POST ${REPORTER_URL})
     set_lokalizace
     set_dump1090 "${EXPERT}"
     set_adsbfwd "${EXPERT}"
@@ -1522,6 +1561,7 @@ if ${CFG_NEW} ;then
     set_n2nvpn
     set_reporter
     set_cfg
+    info_install
     UPGRADE=true
     install_select
 fi
