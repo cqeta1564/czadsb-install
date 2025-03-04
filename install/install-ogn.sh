@@ -38,7 +38,7 @@ fi
 grep "^${OGN_USER}:" /etc/passwd > /dev/null
 if [[ "$?" == "1" ]];then
     echo "* Vytvoreni uzivatele \"${OGN_USER}\" pro spusteni rtlsdr OGN"
-    $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${OGN_USER}
+    $SUDO adduser --system --group --no-create-home --shell /bin/bash ${OGN_USER}
 else
     echo "* Uzivatel \"${OGN_USER}\" jiz existuje"
 fi
@@ -95,7 +95,8 @@ $SUDO mkfifo ogn-rf.fifo
 
 echo "* Nastaveni GeoidSepar"
 $SUDO rm -f /opt/rtlsdr-ogn/WW15MGH.DAC
-$SUDO wget -nv --no-check-certificate https://earth-info.nga.mil/GandG/wgs84/gravitymod/egm96/binary/WW15MGH.DAC -U /opt/rtlsdr-ogn/WW15MGH.DAC
+$SUDO wget -nv --no-check-certificate --tries=2 https://earth-info.nga.mil/GandG/wgs84/gravitymod/egm96/binary/WW15MGH.DAC -U /opt/rtlsdr-ogn/WW15MGH.DAC
+$SUDO chown ${OGN_USER}:${OGN_USER} /opt/rtlsdr-ogn/WW15MGH.DAC
 
 echo "* Konfigurace rtlsdr-ogn-bin"
 CONFIG_FILE=/opt/rtlsdr-ogn/OGNstation.conf

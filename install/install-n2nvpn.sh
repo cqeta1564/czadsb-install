@@ -70,7 +70,7 @@ fi
 grep "^${N2NADSB_USER}:" /etc/passwd > /dev/null
 if [[ "$?" == "1" ]];then
     echo "* Vytvoreni uzivatele \"${N2NADSB_USER}\" pro spusteni ${N2NADSB_NAME}"
-    $SUDO adduser --system --no-create-home --shell /usr/sbin/nologin ${N2NADSB_USER}
+    $SUDO adduser --system --group --no-create-home --shell /bin/bash ${N2NADSB_USER}
 else
     echo "* Uzivatel \"${N2NADSB_USER}\" jiz existuje"
 fi
