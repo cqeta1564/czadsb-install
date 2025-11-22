@@ -265,24 +265,58 @@ function info_ctl(){
 }
 
 # Funkce zobrazi stav vybranych sluzeb
-function info_components(){
+function info_components() {
+
     printf "┌ Komponenty / sluzby ─────── Po startu ──── Prednastaveni ── Status ──────┐\n"
-    info_ctl "dump1090"        ; IS_DUMP=${IS_CTL}
-    info_ctl "tar1090-adsblol" ; IS_DUMP=${IS_CTL}
-    info_ctl "tar1090-adsbx"   ; IS_DUMP=${IS_CTL}
-    info_ctl "adsbfwd"         ; IS_ADSB=${IS_CTL}
-    info_ctl "mlat-client"     ; IS_MLAT=${IS_CTL}
-    info_ctl "fr24feed"        ; IS_FEED=${IS_CTL}
-    info_ctl "piaware"         ; IS_PIAW=${IS_CTL}
-    info_ctl "lighttpd"
-    info_ctl "vpn-czadsb"      ; IS_VPNC=${IS_CTL}
-    info_ctl "rpimonitor"      ; IS_RPIM=${IS_CTL}
-    if [[ "${OGN}" == "disable" ]] || [[ "${OGN}" == "enable" ]];then
+
+    # Prefixy služeb, které chceme dynamicky zachytit
+    # Stačí přidat prefix do pole
+    local prefixes=(
+        "dump1090"
+        "tar1090"
+        "adsbfwd"
+        "adsbhub"         # adsbhub.org
+        "adsbexchange"    # adsbexchange.com
+        "mlat-client"
+        "piaware"         # flightaware.com
+        "fr24feed"        # flightradar24.com
+        "lighttpd"
+        "adsbfi"          # adsb.fi
+        "airplanes"       # adsb.one
+        "adsblol"         # adsb.lol
+        "theairtraffic"   # theairtraffic.com
+        "sdrmapfeeder"    # adsb.chaos-consulting.de
+        "opensky-feeder"  # opensky-network.org
+    )
+
+    # Vyhledané služby (unikátní)
+    local found_services=()
+
+    # Najdi všechny systemd služby podle prefixů
+    for prefix in "${prefixes[@]}"; do
+        for svcfile in /etc/systemd/system/${prefix}*.service /lib/systemd/system/${prefix}*.service; do
+            [[ -e "$svcfile" ]] || continue
+            local svc="$(basename "$svcfile" .service)"
+
+            # vynech duplicitní položky
+            if [[ ! " ${found_services[*]} " =~ " ${svc} " ]]; then
+                found_services+=("$svc")
+            fi
+        done
+    done
+
+    # Pro každou nalezenou službu zavolej původní funkci info_ctl
+    for service in "${found_services[@]}"; do
+        info_ctl "$service"
+    done
+
+    # Pokud máš OGN, zachováno z původního kódu
+    if [[ "${OGN}" == "disable" ]] || [[ "${OGN}" == "enable" ]]; then
         info_ctl "${OGN_NAME}"
     fi
+
     printf "└──────────────────────────────────────────────────────────────────────────┘\n"
 }
-
 
 # Funkce zobrazi uvitani pro novou instalaci
 function info_newinst(){
